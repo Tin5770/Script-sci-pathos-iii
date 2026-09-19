@@ -1,0 +1,536 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+
+-- ==========================================
+-- 1. สร้าง GUI หลัก (โปร SCI Pathos III)
+-- ==========================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ProSCI_PathosIII"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 230, 0, 360)
+mainFrame.Position = UDim2.new(0.5, -115, 0.5, -180)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+-- แถบ Header สำหรับคลิกลาก
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 35)
+header.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "โปร SCI Pathos III"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Font = Enum.Font.GothamBold
+title.TextSize = 13
+title.Parent = header
+
+-- ปุ่มพับหน้าต่าง
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 30, 0, 30)
+minBtn.Position = UDim2.new(1, -30, 0, 2)
+minBtn.BackgroundTransparency = 1
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 18
+minBtn.Parent = header
+
+-- พื้นที่ Scroll สำหรับใส่ปุ่มต่างๆ
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -10, 1, -60)
+scrollFrame.Position = UDim2.new(0, 5, 0, 40)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.Parent = mainFrame
+
+local uiList = Instance.new("UIListLayout")
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 6)
+uiList.Parent = scrollFrame
+
+uiList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y + 10)
+end)
+
+-- ข้อความเครดิต
+local creditLabel = Instance.new("TextLabel")
+creditLabel.Size = UDim2.new(1, 0, 0, 20)
+creditLabel.Position = UDim2.new(0, 0, 1, -20)
+creditLabel.BackgroundTransparency = 1
+creditLabel.Text = "สร้างโดย Dev Tin Roblox"
+creditLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+creditLabel.Font = Enum.Font.Gotham
+creditLabel.TextSize = 10
+creditLabel.Parent = mainFrame
+
+-- ฟังก์ชันช่วยสร้างปุ่ม UI
+local function createButton(text, color, order)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -8, 0, 32)
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.LayoutOrder = order
+    btn.Parent = scrollFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+-- ==========================================
+-- 2. ระบบ ESP Coal (Auto-Scan)
+-- ==========================================
+local coalEspBtn = createButton("ESP Coal: OFF", Color3.fromRGB(80, 80, 90), 1)
+local coalEspActive = false
+local coalHighlights = {}
+
+local function applyCoalHighlight(obj)
+    if not obj:FindFirstChild("CoalHighlight") then
+        local hl = Instance.new("Highlight")
+        hl.Name = "CoalHighlight"
+        hl.FillColor = Color3.fromRGB(255, 200, 0)
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.FillTransparency = 0.4
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Adornee = obj
+        hl.Parent = obj
+        table.insert(coalHighlights, hl)
+    end
+end
+
+local function clearCoalESP()
+    for _, hl in pairs(coalHighlights) do
+        if hl then hl:Destroy() end
+    end
+    coalHighlights = {}
+end
+
+coalEspBtn.MouseButton1Click:Connect(function()
+    coalEspActive = not coalEspActive
+    coalEspBtn.Text = coalEspActive and "ESP Coal: ON" or "ESP Coal: OFF"
+    coalEspBtn.BackgroundColor3 = coalEspActive and Color3.fromRGB(200, 140, 0) or Color3.fromRGB(80, 80, 90)
+
+    clearCoalESP()
+
+    if coalEspActive then
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj.Name == "Coal" and (obj:IsA("Model") or obj:IsA("BasePart")) then
+                applyCoalHighlight(obj)
+            end
+        end
+    end
+end)
+
+Workspace.DescendantAdded:Connect(function(descendant)
+    if coalEspActive and descendant.Name == "Coal" then
+        task.wait(0.1)
+        if descendant:IsA("Model") or descendant:IsA("BasePart") then
+            applyCoalHighlight(descendant)
+        end
+    end
+end)
+
+-- ==========================================
+-- 3. ระบบ ESP ผู้เล่น (แก้ไขระบบใหม่ให้เสถียร 100%)
+-- ==========================================
+local playerEspBtn = createButton("ESP Player: OFF", Color3.fromRGB(80, 80, 90), 2)
+local playerEspActive = false
+local espStorage = {} -- เก็บข้อมูล ESP ของผู้เล่นแต่ละคน
+
+local function clearESP(targetPlayer)
+    if espStorage[targetPlayer] then
+        if espStorage[targetPlayer].bg then espStorage[targetPlayer].bg:Destroy() end
+        if espStorage[targetPlayer].hl then espStorage[targetPlayer].hl:Destroy() end
+        espStorage[targetPlayer] = nil
+    end
+end
+
+local function createESP(targetPlayer)
+    if not targetPlayer.Character then return end
+    local hrp = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local hum = targetPlayer.Character:FindFirstChild("Humanoid")
+    if not hrp or not hum then return end
+
+    local bg = Instance.new("BillboardGui")
+    bg.Name = "PlayerESP_UI"
+    bg.AlwaysOnTop = true
+    bg.Size = UDim2.new(0, 200, 0, 60)
+    bg.StudsOffset = Vector3.new(0, 3.5, 0)
+    bg.Parent = hrp
+
+    local txt = Instance.new("TextLabel")
+    txt.Size = UDim2.new(1, 0, 1, 0)
+    txt.BackgroundTransparency = 1
+    txt.RichText = true
+    txt.Font = Enum.Font.GothamBold
+    txt.TextSize = 11
+    txt.TextStrokeTransparency = 0.2
+    txt.Parent = bg
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "PlayerESP_Chams"
+    hl.FillTransparency = 0.5
+    hl.OutlineTransparency = 0.1
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Parent = targetPlayer.Character
+
+    espStorage[targetPlayer] = {
+        bg = bg,
+        txt = txt,
+        hl = hl,
+        char = targetPlayer.Character,
+        hrp = hrp,
+        hum = hum
+    }
+end
+
+-- ลูปกลางตัวเดียวสำหรับจัดการ ESP ของทุกคน
+RunService.RenderStepped:Connect(function()
+    if not playerEspActive then return end
+    
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer == player then continue end
+        
+        local esp = espStorage[targetPlayer]
+        
+        -- ตรวจสอบว่าตัวละครยังอยู่หรือไม่ (ถ้าตาย/เพิ่งเกิดใหม่ ให้สร้าง ESP ใหม่)
+        if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") or not targetPlayer.Character:FindFirstChild("Humanoid") then
+            clearESP(targetPlayer)
+            continue
+        end
+        
+        local hrp = targetPlayer.Character.HumanoidRootPart
+        local hum = targetPlayer.Character.Humanoid
+        
+        -- สร้าง ESP ใหม่ถ้าผู้เล่นเพิ่งเกิด
+        if not esp or esp.char ~= targetPlayer.Character then
+            clearESP(targetPlayer)
+            createESP(targetPlayer)
+            esp = espStorage[targetPlayer]
+        end
+        
+        -- อัปเดตข้อมูล ESP (เลือด, ระยะทาง, สี)
+        if esp and esp.bg and esp.hl then
+            if hum.Health <= 0 then
+                esp.bg.Enabled = false
+                esp.hl.Enabled = false
+                continue
+            end
+
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local myHrp = player.Character.HumanoidRootPart
+                local dist = math.floor((myHrp.Position - hrp.Position).Magnitude)
+                
+                local teamColor = targetPlayer.Team and targetPlayer.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+                local teamName = targetPlayer.Team and targetPlayer.Team.Name or "No Team"
+                
+                esp.hl.Enabled = true
+                esp.hl.FillColor = teamColor
+                esp.hl.OutlineColor = teamColor
+
+                if dist > 2000 then
+                    esp.bg.Enabled = false
+                else
+                    esp.bg.Enabled = true
+                    esp.txt.Text = string.format(
+                        "<font color='#FFFFFF'>%s</font>\n<font color='#%s'>%s</font>\n<font color='#FFFFFF'>Name: %s | Health: %d | Studs: %d</font>",
+                        targetPlayer.Name, teamColor:ToHex(), teamName, targetPlayer.Name, math.floor(hum.Health), dist
+                    )
+                end
+            end
+        end
+    end
+end)
+
+playerEspBtn.MouseButton1Click:Connect(function()
+    playerEspActive = not playerEspActive
+    playerEspBtn.Text = playerEspActive and "ESP Player: ON" or "ESP Player: OFF"
+    playerEspBtn.BackgroundColor3 = playerEspActive and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(80, 80, 90)
+
+    -- เมื่อกดปิด ล้าง ESP ทุกตัวทิ้งทันที
+    if not playerEspActive then
+        for _, p in pairs(Players:GetPlayers()) do
+            clearESP(p)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    clearESP(p) -- ล้างข้อมูลเมื่อผู้เล่นออกจากเซิร์ฟเวอร์
+end)
+
+-- ==========================================
+-- 4. ระบบ Hitbox (แก้ไขให้ปิด-เปิดสมบูรณ์แบบ)
+-- ==========================================
+local hitboxBtn = createButton("Hitbox: OFF", Color3.fromRGB(80, 80, 90), 3)
+local hitboxSizeBtn = createButton("ขนาด Hitbox: [10]", Color3.fromRGB(60, 60, 70), 4)
+local hitboxTransBtn = createButton("ความใส: [50%]", Color3.fromRGB(60, 60, 70), 5)
+
+local hitboxActive = false
+local hitboxConnection = nil -- ตัวแปรเก็บลูปของ Hitbox
+
+local sizes = {Vector3.new(10, 10, 10), Vector3.new(15, 15, 15), Vector3.new(20, 20, 20), Vector3.new(5, 5, 5)}
+local currentHitboxSize = sizes[1]
+local sizeIndex = 1
+
+local transList = {0.5, 0.7, 0.9, 0.2}
+local currentTrans = transList[1]
+local transIndex = 1
+
+local function resetHitboxSize()
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local hrp = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Size = Vector3.new(2, 2, 1) -- ขนาดตั้งต้นของ Roblox
+                hrp.Transparency = 1
+                hrp.CanCollide = false
+            end
+        end
+    end
+end
+
+hitboxBtn.MouseButton1Click:Connect(function()
+    hitboxActive = not hitboxActive
+    hitboxBtn.Text = hitboxActive and "Hitbox: ON" or "Hitbox: OFF"
+    hitboxBtn.BackgroundColor3 = hitboxActive and Color3.fromRGB(220, 50, 50) or Color3.fromRGB(80, 80, 90)
+
+    if hitboxActive then
+        -- เริ่มทำงาน Hitbox (สร้างลูป)
+        if not hitboxConnection then
+            hitboxConnection = RunService.Heartbeat:Connect(function()
+                for _, otherPlayer in pairs(Players:GetPlayers()) do
+                    if otherPlayer ~= player and otherPlayer.Character then
+                        local hrp = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            local teamColor = otherPlayer.Team and otherPlayer.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+                            hrp.Size = currentHitboxSize
+                            hrp.Transparency = currentTrans
+                            hrp.Color = teamColor
+                            hrp.Material = Enum.Material.SmoothPlastic
+                            hrp.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        -- ปิดการทำงาน (ตัดลูปทิ้ง และบังคับคืนค่าขนาด)
+        if hitboxConnection then
+            hitboxConnection:Disconnect()
+            hitboxConnection = nil
+        end
+        resetHitboxSize()
+    end
+end)
+
+hitboxSizeBtn.MouseButton1Click:Connect(function()
+    sizeIndex = (sizeIndex % #sizes) + 1
+    currentHitboxSize = sizes[sizeIndex]
+    hitboxSizeBtn.Text = "ขนาด Hitbox: [" .. tostring(currentHitboxSize.X) .. "]"
+end)
+
+hitboxTransBtn.MouseButton1Click:Connect(function()
+    transIndex = (transIndex % #transList) + 1
+    currentTrans = transList[transIndex]
+    hitboxTransBtn.Text = "ความใส: [" .. tostring(math.floor(currentTrans * 100)) .. "%]"
+end)
+
+-- ==========================================
+-- 5. ระบบ Noclip
+-- ==========================================
+local noclipBtn = createButton("Noclip: OFF", Color3.fromRGB(80, 80, 90), 6)
+local noclipActive = false
+local noclipConnection = nil
+
+local function enableNoclip()
+    if noclipConnection then noclipConnection:Disconnect() end
+    noclipConnection = RunService.Stepped:Connect(function()
+        if player.Character then
+            for _, child in pairs(player.Character:GetChildren()) do
+                if child:IsA("BasePart") then
+                    child.CanCollide = false
+                end
+            end
+        end
+    end)
+end
+
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+
+    if player.Character then
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+
+        for _, child in pairs(player.Character:GetChildren()) do
+            if child:IsA("BasePart") and child.Name ~= "HumanoidRootPart" then
+                child.CanCollide = true
+            end
+        end
+    end
+end
+
+noclipBtn.MouseButton1Click:Connect(function()
+    noclipActive = not noclipActive
+    noclipBtn.Text = noclipActive and "Noclip: ON" or "Noclip: OFF"
+    noclipBtn.BackgroundColor3 = noclipActive and Color3.fromRGB(150, 0, 200) or Color3.fromRGB(80, 80, 90)
+
+    if noclipActive then
+        enableNoclip()
+    else
+        disableNoclip()
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    if noclipActive then
+        noclipActive = false
+        noclipBtn.Text = "Noclip: OFF"
+        noclipBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+    end
+end)
+
+-- ==========================================
+-- 6. ระบบ Teleport
+-- ==========================================
+local function TeleportTo(x, y, z)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoidRootPart then
+        humanoidRootPart.CFrame = CFrame.new(x, y, z)
+    end
+end
+
+local tpBtn1 = createButton("SCP-914", Color3.fromRGB(0, 130, 255), 7)
+local tpBtn5 = createButton("SCP-294", Color3.fromRGB(0, 130, 255), 8)
+local tpBtn6 = createButton("ไปเอา SCP", Color3.fromRGB(140, 70, 220), 9) 
+local tpBtn2 = createButton("ไปเอาเกราะ", Color3.fromRGB(0, 180, 100), 10)
+local tpBtn3 = createButton("กลับไปที่ CD", Color3.fromRGB(200, 80, 80), 11)
+local tpBtn4 = createButton("ไปซื้อปืน", Color3.fromRGB(220, 130, 30), 12)
+
+local scp914Pos = Vector3.new(250, -34, 1671)
+local checkRadius = 250
+
+tpBtn1.MouseButton1Click:Connect(function()
+    local canTeleport = true
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player then
+            local char = otherPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local distance = (char.HumanoidRootPart.Position - scp914Pos).Magnitude
+                if distance <= checkRadius then
+                    canTeleport = false
+                    break
+                end
+            end
+        end
+    end
+
+    if canTeleport then
+        TeleportTo(250, -34, 1671)
+    else
+        local originalText = tpBtn1.Text
+        local originalColor = tpBtn1.BackgroundColor3
+        tpBtn1.Text = "มีคนอยู่ใกล้! วาร์ปไม่ได้"
+        tpBtn1.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        
+        task.delay(1.5, function()
+            tpBtn1.Text = originalText
+            tpBtn1.BackgroundColor3 = originalColor
+        end)
+    end
+end)
+
+tpBtn5.MouseButton1Click:Connect(function()
+    TeleportTo(527, -33, 609)
+end)
+
+tpBtn6.MouseButton1Click:Connect(function() 
+    TeleportTo(424, -33, 525)
+end)
+
+tpBtn2.MouseButton1Click:Connect(function() TeleportTo(-177, 19, 424) end)
+tpBtn3.MouseButton1Click:Connect(function() TeleportTo(1702, -18, -58) end)
+tpBtn4.MouseButton1Click:Connect(function() TeleportTo(-108, 61, 226) end)
+
+-- ==========================================
+-- 7. ระบบ พับจอ และ ลาก GUI
+-- ==========================================
+local isMinimized = false
+minBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        scrollFrame.Visible = false
+        creditLabel.Visible = false
+        mainFrame:TweenSize(UDim2.new(0, 230, 0, 35), "Out", "Quad", 0.2, true)
+        minBtn.Text = "+"
+    else
+        mainFrame:TweenSize(UDim2.new(0, 230, 0, 360), "Out", "Quad", 0.2, true)
+        scrollFrame.Visible = true
+        creditLabel.Visible = true
+        minBtn.Text = "-"
+    end
+end)
+
+local dragging, dragInput, dragStart, startPos
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+header.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
